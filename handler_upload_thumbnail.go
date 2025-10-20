@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
+	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -67,13 +70,21 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		mediaType: fileType,
 		data:      fileData,
 	}
-	videoThumbnails[videoID] = thumbnail
-
-	url := fmt.Sprintf("http://localhost:%s/api/thumbnails/%s", cfg.port, videoID)
-	videoMetadata.ThumbnailURL = &url	
-
-	if err := cfg.db.UpdateVideo(videoMetadata); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Unable to update video metadata", err)
+	
+	strFileData := base64.StdEncoding.EncodeToString(thumbnail.data)
+	dataURL := fmt.Sprintf("data:%s;base64,%s", thumbnail.mediaType, strFileData)
+	
+	updatedVideo := database.Video{
+		ID:           videoMetadata.ID,
+		CreatedAt:    videoMetadata.CreatedAt,
+		UpdatedAt:    time.Now(),
+		ThumbnailURL: &dataURL,
+		VideoURL:     videoMetadata.VideoURL,
+		CreateVideoParams: videoMetadata.CreateVideoParams,
+	}
+	err = cfg.db.UpdateVideo(updatedVideo)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to update video metadata with thumbnail URL", err)
 		return
 	}
 
