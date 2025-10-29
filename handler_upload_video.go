@@ -101,6 +101,21 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		aspectPrefix = "portrait"
 	}
 
+	provessedVideo, err := processVideoForFastStart(tempFile.Name())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to process video for fast start", err)
+		return
+	}
+	defer os.Remove(provessedVideo)
+
+	tempFile, err = os.Open(provessedVideo)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to open processed video", err)
+		return
+	}
+	defer tempFile.Close()
+
+
 	randKey := make([]byte, 32)
 	rand.Read(randKey)
 	randID := base64.RawURLEncoding.EncodeToString(randKey)
